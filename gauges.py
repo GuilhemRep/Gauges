@@ -8,7 +8,7 @@ import drawing
 
 test = False
 
-max_allowed_speed = 70
+max_allowed_speed = 90
 
 # Dimensions of video
 height = 800
@@ -18,11 +18,11 @@ width = 200
 alt_error = -50.
 
 # name of video
-name = "MAH04551"
+name = "MAH04544"
 
 fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
 fps = 30
-path = "..."
+path = "/home/guilhem/Desktop/Projets/Gauges/"
 data = open(path + name+".txt", "r")
 video_filename = path +name+"_data.avi"
 out = cv2.VideoWriter(video_filename, fourcc, fps, (width, height))
@@ -52,7 +52,37 @@ for i in range(len(data)):
     time_.append(int(datetime.fromisoformat(data[i][3].replace("Z", "+00:00")).timestamp()-initial_time))
     # time_.append(datetime.fromisoformat(data[i][3].replace("Z", "+00:00")).time())
   
+
+
+# Estimate begining of skydive, and remove ascending points after the fall (that are impossible!)
+fall = 0
+thres = 3
+for i in range(len(data)-4):
+  print(i)
+  if z_[i]-z_[i+1]>thres and z_[i+1]-z_[i+2]>thres and z_[i+2]-z_[i+3]>thres:
+    fall=i
+    break
+print("Fall time = ",fall)
+
+for i in reversed(range(fall+1,len(z_)-1)):
+  if z_[i+1]>z_[i]+2: # I suppose we can climb by 2 meters if we build up speed
+    print(i,z_[i+1],z_[i])
+    lat_.pop(i+1)
+    lon_.pop(i+1)
+    z_.pop(i+1)
+    hr_.pop(i+1)
+    time_.pop(i+1)
+    print("Popped",i+1)
+    i+=1
+    # time_.append(datetime.fromisoformat(data[i][3].replace("Z", "+00:00")).time())
 print("Removed",len(data)-len(time_), "bad points")
+
+print(z_)
+# Check
+for i in range(fall+1, len(z_)-1):
+    if not (z_[i+1]<=z_[i]+2):
+      print(i,z_[i+1],z_[i])
+    assert(z_[i+1]<=z_[i]+2)
 
 
 # Add missing data
@@ -143,7 +173,8 @@ def hspeed(lat1,lat2, lon1,lon2):
   lat2 *= np.pi / 180.0
   lon2 *= np.pi / 180.0
 
-  r = 6378100 + z[i]; # Altitude from center of the earth (lol)
+  r = 6378100 # Altitude from center of the earth, plane altitude ignored
+  # r = 6378100 + z[i]
 
   rho1 = r * np.cos(lat1)
   z1 = r * np.sin(lat1)
@@ -199,11 +230,11 @@ for i in range(number_of_frames):
 min_alt = min(z)
 max_alt = max(z)
   
-min_hr = min(hr)
-max_hr = max(hr)
+min_hr = max(min(hr),40)   # Minimum = 40 bpm
+max_hr = min(max(hr), 220) # Maximum = 220 (hopefully)
 
-max_speed = max(speed)
-min_speed = min(speed)
+max_speed = min(max(speed), 70) # 70 m/s for heads down skydive (?)
+min_speed = max(min(speed), -8) # -8 m/s for climb in Dornier 28 (?)
 
 max_gr = max(glide_ratio)
 min_gr = min(glide_ratio)
