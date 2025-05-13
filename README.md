@@ -4,6 +4,6 @@ A tool to add data to epic skydiving videos
 
 Convert data such as altitude, speed, heart rate etc. from a smartwatch to gauges
 
-https://www.youtube.com/watch?v=1ht0PudSisM
+[https://www.youtube.com/watch?v=1ht0PudSisM](https://youtu.be/1ht0PudSisM?si=DU1xQ7DKLemShtPh&t=49)
 
 For the moment, only supports Garmin Instinct.
