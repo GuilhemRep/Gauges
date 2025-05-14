@@ -72,9 +72,9 @@ def gauge_heart_rate(image, hr, center, min_hr, max_hr):
 
     hr = int(hr)
 
-    if hr>60 and hr<145:
+    if 60<=hr and hr<155:
       color_text=green
-    elif hr<160:
+    elif 155<=hr and hr<170:
       color_text=yellow
     else:
       color_text = red
@@ -150,8 +150,8 @@ def gauge_altitude(image, alt, center, speed):
     image = cv2.ellipse(image, center, axes, 0, 105, 172, white, thickness)
     image = cv2.ellipse(image, center, axes, 0, 188, 255, white, thickness)
     
-    image = cv2.ellipse(image, center, axes, 0, 10, 75, yellow, thickness)
-    image = cv2.ellipse(image, center, axes, 0, 8, 18, orange, thickness)
+    image = cv2.ellipse(image, center, axes, 0, 45, 75, yellow, thickness)
+    image = cv2.ellipse(image, center, axes, 0, 10, 45, orange, thickness)
     image = cv2.ellipse(image, center, axes, 0, 285, 352, red, thickness)
 
 
@@ -165,20 +165,20 @@ def gauge_altitude(image, alt, center, speed):
         s = np.sin(j*np.pi/8)
         image = cv2.line(image,  (center[0] -int((7+(j%2)/2)*radius//8*c), center[1] - int((7+(j%2)/2)*radius//8*s)), (center[0] -int(radius*c), center[1] - int(radius*s)), (235,231,231), 1)
     
-    hand_size_x = 3*L("9999")[0]//4
-    hand_size_y = 3*L("9999")[1]//4
+    hand_size_x = 4*L("9999")[0]//5
+    hand_size_y = 4*L("9999")[1]//5
     image = cv2.rectangle(image, (center[0] -hand_size_x, center[1] - hand_size_y), (center[0] +hand_size_x, center[1] +hand_size_y), black, -1)
     image = cv2.rectangle(image, (center[0] -hand_size_x, center[1] - hand_size_y), (center[0] +hand_size_x, center[1] +hand_size_y), white, 1)
 
 
     color_text = gray
     # Color only during freefall
-    if speed>5:
+    if speed>8:
       if alt>2000:
         color_text=green
-      elif alt>1000:
+      elif alt>1500:
         color_text=yellow
-      elif alt>1200:
+      elif alt>1000:
         color_text=orange
       else:
         color_text = red

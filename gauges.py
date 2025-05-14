@@ -8,23 +8,25 @@ import drawing
 
 test = False
 
-max_allowed_speed = 90
+max_allowed_climb_speed = 12
+
+max_allowed_descent_speed = 60
 
 # Dimensions of video
-height = 800
+height = 600
 width = 200
 
 # Error altitude; displayed_altitude + alt_error = real_altitude
-alt_error = -50.
+alt_error = -610.
 
 # name of video
-name = "MAH04544"
+name = "2"
 
 fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
 fps = 30
-path = "/home/guilhem/Desktop/Projets/Gauges/"
-data = open(path + name+".txt", "r")
-video_filename = path +name+"_data.avi"
+path = "/home/guilhem/Desktop/Parachute/Brevet B2/"
+data = open(path+name+".txt", "r")
+video_filename = path+name+"_data.avi"
 out = cv2.VideoWriter(video_filename, fourcc, fps, (width, height))
 
 
@@ -38,13 +40,22 @@ z_ = []
 hr_=[]
 time_ = []
 
-initial_time = datetime.fromisoformat(data[0][3].replace("Z", "+00:00")).timestamp()
-
 print("Initial length:",len(data))
 
-for i in range(len(data)):
+assert (len(data)>0)
+
+initial_time = datetime.fromisoformat(data[0][3].replace("Z", "+00:00")).timestamp()
+
+jumped = False
+
+for i in range(1,len(data)):
   # Only keep point if vertical speed possible
-  if i>0 and abs(float(data[i][2])-float(data[i-1][2]))<max_allowed_speed:
+  dt = int(datetime.fromisoformat(data[i][3].replace("Z", "+00:00")).timestamp()) - int(datetime.fromisoformat(data[i-1][3].replace("Z", "+00:00")).timestamp())
+  assert dt>0
+  if float(data[i-1][2])-float(data[i][2])<dt*max_allowed_descent_speed and (not(jumped) or float(data[i-1][2])-float(data[i][2])>1*dt):
+    if jumped or float(data[i-1][2])-float(data[i][2])>30:
+      jumped = True
+    
     lat_.append(float(data[i][0]))
     lon_.append(float(data[i][1]))
     z_.append(float(data[i][2])+ alt_error)
@@ -52,43 +63,14 @@ for i in range(len(data)):
     time_.append(int(datetime.fromisoformat(data[i][3].replace("Z", "+00:00")).timestamp()-initial_time))
     # time_.append(datetime.fromisoformat(data[i][3].replace("Z", "+00:00")).time())
   
-
-
-# Estimate begining of skydive, and remove ascending points after the fall (that are impossible!)
-fall = 0
-thres = 3
-for i in range(len(data)-4):
-  print(i)
-  if z_[i]-z_[i+1]>thres and z_[i+1]-z_[i+2]>thres and z_[i+2]-z_[i+3]>thres:
-    fall=i
-    break
-print("Fall time = ",fall)
-
-for i in reversed(range(fall+1,len(z_)-1)):
-  if z_[i+1]>z_[i]+2: # I suppose we can climb by 2 meters if we build up speed
-    print(i,z_[i+1],z_[i])
-    lat_.pop(i+1)
-    lon_.pop(i+1)
-    z_.pop(i+1)
-    hr_.pop(i+1)
-    time_.pop(i+1)
-    print("Popped",i+1)
-    i+=1
-    # time_.append(datetime.fromisoformat(data[i][3].replace("Z", "+00:00")).time())
 print("Removed",len(data)-len(time_), "bad points")
-
-print(z_)
-# Check
-for i in range(fall+1, len(z_)-1):
-    if not (z_[i+1]<=z_[i]+2):
-      print(i,z_[i+1],z_[i])
-    assert(z_[i+1]<=z_[i]+2)
 
 
 # Add missing data
 i=0
 while i<len(time_)-1:
   dt = time_[i+1]-time_[i]
+  assert dt>0
   if dt!=1:
     print("Missing", dt-1, ("point " if dt==2 else "points"), "at time",time_[i])
     missing_time = []
@@ -97,25 +79,25 @@ while i<len(time_)-1:
     missing_lat = []
     missing_lon = []
     for t in range(1,dt):
-      missing_time.append(int(((dt-t)*time_[i] + t*time_[i+t])//dt))
-      missing_hr.append(int(((dt-t)*hr_[i] + t*hr_[i+t])//dt))
-      missing_z.append(int(((dt-t)*z_[i] + t*z_[i+t])//dt))
-      missing_lat.append(((dt-t)*lat_[i] + t*lat_[i+t])//dt)
-      missing_lon.append(((dt-t)*lon_[i] + t*lon_[i+t])//dt)
+      missing_time.append(int(((dt-t)*time_[i] + t*time_[i+1])//dt))
+      missing_hr.append    (int(((dt-t)*hr_[i] + t*hr_[i+1])//dt))
+      missing_z.append      (int(((dt-t)*z_[i] + t*z_[i+1])//dt))
+      missing_lat.append      (((dt-t)*lat_[i] + t*lat_[i+1])//dt)
+      missing_lon.append      (((dt-t)*lon_[i] + t*lon_[i+1])//dt)
     time_[i+1:i+1] = missing_time
     hr_[i+1:i+1] = missing_hr
     z_[i+1:i+1] = missing_z
     lat_[i+1:i+1] = missing_lat
     lon_[i+1:i+1] = missing_lon
-    i+=dt+1
-  else:
-    i+=1
+    # i+=dt+1
+  i+=1
+
 
 # Test the absence of missing points
 for i in range(len(time_)-1):
   if time_[i+1] - time_[i] != 1:
-    print("error",i)
-  # assert time_[i+1] - time_[i] == 1
+    print("error",i, time_[i+1], time_[i])
+  assert time_[i+1] - time_[i] == 1
 
 corrected_length = len(time_)
 print("Corrected length:",corrected_length)
@@ -173,8 +155,7 @@ def hspeed(lat1,lat2, lon1,lon2):
   lat2 *= np.pi / 180.0
   lon2 *= np.pi / 180.0
 
-  r = 6378100 # Altitude from center of the earth, plane altitude ignored
-  # r = 6378100 + z[i]
+  r = 6378100 + z[i]; # Altitude from center of the earth (lol)
 
   rho1 = r * np.cos(lat1)
   z1 = r * np.sin(lat1)
@@ -230,11 +211,11 @@ for i in range(number_of_frames):
 min_alt = min(z)
 max_alt = max(z)
   
-min_hr = max(min(hr),40)   # Minimum = 40 bpm
-max_hr = min(max(hr), 220) # Maximum = 220 (hopefully)
+min_hr = min(hr)
+max_hr = max(hr)
 
-max_speed = min(max(speed), 70) # 70 m/s for heads down skydive (?)
-min_speed = max(min(speed), -8) # -8 m/s for climb in Dornier 28 (?)
+max_speed = max(speed)
+min_speed = min(speed)
 
 max_gr = max(glide_ratio)
 min_gr = min(glide_ratio)
@@ -269,7 +250,7 @@ for i in range(200 if test else number_of_frames):
       frame = drawing.gauge_heart_rate(frame, hr[i], org_hr, min_hr, max_hr)
       frame = drawing.gauge_altitude(frame, z[i], org_alt, speed[i])
       frame = drawing.gauge_speed(frame, speed[i], org_speed, min_speed, max_speed)
-      frame = drawing.gauge_glide_ratio(frame, glide_ratio[i], org_glide, min_gr, max_gr)
+      #frame = drawing.gauge_glide_ratio(frame, glide_ratio[i], org_glide, min_gr, max_gr)
       frame = frame.astype(np.uint8)
       out.write(frame)
 # cv2.putText(frame, "Tt", (210,190), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0),1)
